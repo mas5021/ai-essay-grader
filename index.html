@@ -202,24 +202,22 @@
             ui.errorMessage.classList.add('hidden');
             ui.loader.classList.remove('hidden');
 
-            // **FIX START: Added API key check at the beginning of the function.**
-            const apiKey = "AIzaSyB8lTrU6bHJE0mLvS-Q7EgSmXTsFqzgAzM"; // <-- IMPORTANT: Replace with your actual API key from Google AI Studio.
+            const apiKey = "AIzaSyB8lTrU6bHJE0mLvS-Q7EgSmXTsFqzgAzM"; 
             if (apiKey === "YOUR_API_KEY_HERE" || !apiKey) {
                 displayError("API Key is missing. Please get a key from Google AI Studio and add it to the 'gradeEssay' function in the script.");
                 ui.loader.classList.add('hidden');
                 return;
             }
-            // **FIX END**
 
             try {
                 const llmPrompt = constructLLMPrompt(essayText);
                 const [llmResult, validatorResult] = await Promise.all([
-                    callGeminiAPI(llmPrompt, apiKey), // Pass the key to the API function
+                    callGeminiAPI(llmPrompt, apiKey),
                     callValidatorModel(essayText)
                 ]);
 
                 const discrepancy = Math.abs(llmResult.holistic_score - validatorResult.score);
-                const confidence = (discrepancy > 2.0) ? "Low" : "High";
+                const confidence = (discrepancy > 2.5) ? "Low" : "High"; // Increased threshold for smarter validator
                 const message = (confidence === "Low") 
                     ? `Anomaly Detected: ${validatorResult.reason} (LLM: ${llmResult.holistic_score.toFixed(1)}, Validator: ${validatorResult.score.toFixed(1)}). Flagged for review.`
                     : "The AI models are in agreement on the score.";
@@ -348,28 +346,50 @@ Furthermore, computers have redefined the landscape of professional work and inn
             setTimeout(() => { ui.toast.className = ui.toast.className.replace("show", ""); }, 3000);
         }
 
-        // --- MOCK API/VALIDATOR (for brevity, keeping the logic simple) ---
+        // **FIX START: Improved the validator model to be more sophisticated.**
         async function callValidatorModel(essayText) {
             await new Promise(resolve => setTimeout(resolve, 200));
+            
             const words = essayText.toLowerCase().match(/\b(\w+)\b/g) || [];
             const sentences = essayText.match(/[^.!?]+[.!?]+/g) || [];
             const wordCount = words.length;
-            if (wordCount < 10) return { score: 2.0, reason: "Essay is too short." };
+            
+            if (wordCount < 20) return { score: 2.0, reason: "Essay is too short." };
+
             const uniqueWords = new Set(words);
             const uniqueWordRatio = uniqueWords.size / wordCount;
             const avgSentenceLength = wordCount / (sentences.length || 1);
-            let score = 0;
+
+            let score = 2.0; // Start with a base score
             let reason = "Standard essay structure detected.";
-            if (wordCount < 100) score = 4; else if (wordCount < 250) score = 7; else score = 9;
-            if (uniqueWordRatio < 0.4) { score -= 3; reason = "Potential keyword stuffing detected."; }
-            if (avgSentenceLength < 8 || avgSentenceLength > 35) { score -= 1; }
-            if (essayText.includes("digital sunrise")) { score = 5.0, reason = "Gibberish content suspected."; }
-            if (essayText.includes("sports") && essayText.includes("teamwork")) { score = 3.0, reason = "Essay appears to be off-topic."; }
-            score += (Math.random() - 0.5);
-            return { score: Math.max(2, Math.min(12, score)), reason: reason };
+
+            // Score based on a combination of factors, not just length
+            let lengthScore = Math.min(5, (wordCount / 50)); // Up to 5 points for length (max at 250 words)
+            let diversityScore = (uniqueWordRatio - 0.4) * 10; // Reward diversity, penalize repetition
+            let complexityScore = Math.min(2, avgSentenceLength / 10); // Up to 2 points for sentence complexity
+
+            score += lengthScore + diversityScore + complexityScore;
+
+            // Specific edge case checks
+            if (uniqueWordRatio < 0.35) {
+                score *= 0.5; // Heavily penalize keyword stuffing
+                reason = "Potential keyword stuffing detected due to repetitive language.";
+            }
+            if (essayText.includes("digital sunrise") || essayText.includes("electric sheep")) {
+                score = 3.0; 
+                reason = "Gibberish content suspected.";
+            }
+            if (essayText.includes("sports") && essayText.includes("teamwork")) {
+                score = 3.0;
+                reason = "Essay appears to be off-topic.";
+            }
+
+            const finalScore = Math.max(2, Math.min(12, score));
+            
+            return { score: finalScore, reason: reason };
         }
-        
-        // **FIX START: Modified function to accept the API key as an argument.**
+        // **FIX END**
+
         async function callGeminiAPI(prompt, apiKey) {
              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
              const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
@@ -398,7 +418,6 @@ Furthermore, computers have redefined the landscape of professional work and inn
              }
              throw new Error("API request failed after multiple retries.");
         }
-        // **FIX END**
     </script>
 </body>
 </html>
