@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Essay Scoring Model (Dynamic Rubric)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal { transition: opacity 0.25s ease; }
+        .modal-active { overflow-x: hidden; overflow-y: auto; }
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+            font-size: 17px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s, visibility 0.3s;
+        }
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Advanced Essay Scoring Model</h1>
+            <p class="mt-2 text-md text-gray-600">This system uses a Hybrid AI Guardrail and a fully customizable rubric.</p>
+        </header>
+
+        <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 space-y-8">
+            <!-- Rubric Editor Section -->
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Rubric Editor</h2>
+                <div id="rubric-editor-container" class="space-y-4">
+                    <!-- Dynamic rubric traits will be inserted here -->
+                </div>
+                <div class="flex items-center gap-4 mt-4">
+                    <button id="add-trait-button" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-200 text-sm">Add Trait</button>
+                    <button id="save-rubric-button" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200 text-sm">Save Rubric</button>
+                </div>
+            </div>
+
+            <!-- Essay Input Section -->
+            <div>
+                 <div class="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-2">Official Essay Prompt (Set 1)</h2>
+                    <p id="essay-prompt-text" class="text-gray-700 text-sm">More and more people use computers, but not everyone agrees that this is a good thing. Think about how computers affect people. Are computers a good thing or a bad thing? Use specific reasons and examples to support your answer.</p>
+                </div>
+                <div class="mb-6">
+                    <label for="essay-input" class="block text-lg font-semibold text-gray-800 mb-2">Student's Essay</label>
+                    <textarea id="essay-input" rows="15" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" placeholder="Paste the student's essay here..."></textarea>
+                </div>
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <button id="grade-button" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-transform transform hover:scale-105 duration-200 w-full sm:w-auto">Grade Essay</button>
+                    <button id="show-prompt-button" class="bg-gray-200 text-gray-700 font-bold py-3 px-8 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-300 transition duration-200 w-full sm:w-auto">Show Expert Prompt</button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="mt-8 hidden">
+                <div id="loader" class="flex justify-center items-center py-8 hidden"><div class="loader"></div><p class="ml-4 text-gray-600">Analyzing essay...</p></div>
+                <div id="error-message" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert"><p class="font-bold">Error</p><p id="error-text"></p></div>
+                <div id="results-content" class="hidden">
+                    <h2 class="text-2xl font-bold text-center mb-6 text-gray-900 border-b pb-3">Grading Analysis</h2>
+                    <div id="confidence-section" class="mb-6"></div>
+                    <div class="text-center bg-gray-100 p-6 rounded-xl mb-6"><p class="text-lg font-medium text-gray-600">Holistic Score</p><p id="holistic-score" class="text-5xl font-bold text-blue-600"></p></div>
+                    <div id="trait-scores-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+                    <div>
+                        <div class="mb-4"><h3 class="text-xl font-semibold mb-2 text-green-700">Strengths</h3><p id="feedback-strengths" class="bg-green-50 p-4 rounded-lg border border-green-200 text-gray-800"></p></div>
+                        <div><h3 class="text-xl font-semibold mb-2 text-orange-700">Areas for Improvement</h3><p id="feedback-improvement" class="bg-orange-50 p-4 rounded-lg border border-orange-200 text-gray-800"></p></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal and Toast -->
+    <div id="prompt-modal" class="modal-active hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"><div class="modal-container bg-white w-11/12 md:max-w-2xl mx-auto rounded-lg shadow-lg z-50 overflow-y-auto"><div class="modal-content py-4 text-left px-6"><div class="flex justify-between items-center pb-3"><p class="text-2xl font-bold">Generated API Prompt</p><button id="close-prompt-button" class="cursor-pointer z-50">&times;</button></div><div class="my-5"><pre id="prompt-display" class="bg-gray-100 p-4 rounded-md text-sm whitespace-pre-wrap break-words max-h-96 overflow-y-auto"></pre></div></div></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        let rubric = [];
+        const defaultRubric = [
+            { name: 'Thesis Clarity & Focus', description: 'How clear, specific, and arguable is the main thesis? Does the essay maintain a consistent focus on this thesis?' },
+            { name: 'Evidence & Support', description: 'How well does the author use specific, relevant examples, reasons, and details to support their claims? Is the evidence convincing?' },
+            { name: 'Organization & Cohesion', description: 'Is the essay logically structured with a clear introduction, body, and conclusion? Are paragraphs well-developed and linked with effective transitions?' },
+            { name: 'Language & Grammar', description: 'How effective is the word choice and sentence structure? Is the essay free of major grammatical and spelling errors?' }
+        ];
+
+        // --- UI ELEMENTS ---
+        const ui = {
+            gradeButton: document.getElementById('grade-button'),
+            essayInput: document.getElementById('essay-input'),
+            resultsSection: document.getElementById('results-section'),
+            loader: document.getElementById('loader'),
+            errorMessage: document.getElementById('error-message'),
+            errorText: document.getElementById('error-text'),
+            resultsContent: document.getElementById('results-content'),
+            showPromptButton: document.getElementById('show-prompt-button'),
+            promptModal: document.getElementById('prompt-modal'),
+            closePromptButton: document.getElementById('close-prompt-button'),
+            promptDisplay: document.getElementById('prompt-display'),
+            confidenceSection: document.getElementById('confidence-section'),
+            rubricEditorContainer: document.getElementById('rubric-editor-container'),
+            addTraitButton: document.getElementById('add-trait-button'),
+            saveRubricButton: document.getElementById('save-rubric-button'),
+            traitScoresGrid: document.getElementById('trait-scores-grid'),
+            toast: document.getElementById('toast')
+        };
+
+        // --- EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', initializeRubric);
+        ui.gradeButton.addEventListener('click', gradeEssay);
+        ui.showPromptButton.addEventListener('click', showPrompt);
+        ui.closePromptButton.addEventListener('click', () => ui.promptModal.classList.add('hidden'));
+        ui.promptModal.addEventListener('click', (e) => { if (e.target === ui.promptModal) ui.promptModal.classList.add('hidden'); });
+        ui.addTraitButton.addEventListener('click', addRubricTrait);
+        ui.saveRubricButton.addEventListener('click', saveRubric);
+        
+        // --- RUBRIC MANAGEMENT ---
+        function initializeRubric() {
+            const savedRubric = localStorage.getItem('customEssayRubric');
+            rubric = savedRubric ? JSON.parse(savedRubric) : defaultRubric;
+            renderRubricEditor();
+        }
+
+        function renderRubricEditor() {
+            ui.rubricEditorContainer.innerHTML = '';
+            rubric.forEach((trait, index) => {
+                const traitElement = document.createElement('div');
+                traitElement.className = 'p-4 border rounded-lg bg-gray-50';
+                traitElement.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-gray-700">Trait ${index + 1}</label>
+                        <button data-index="${index}" class="remove-trait-button text-red-500 hover:text-red-700 font-semibold text-sm">&times; Remove</button>
+                    </div>
+                    <input type="text" value="${trait.name}" class="rubric-name-input w-full p-2 border rounded-md mb-2" placeholder="Trait Name (e.g., Argument Strength)">
+                    <textarea class="rubric-desc-input w-full p-2 border rounded-md text-sm" rows="2" placeholder="Description of the trait...">${trait.description}</textarea>
+                `;
+                ui.rubricEditorContainer.appendChild(traitElement);
+            });
+            document.querySelectorAll('.remove-trait-button').forEach(button => {
+                button.addEventListener('click', (e) => removeRubricTrait(e.target.dataset.index));
+            });
+        }
+
+        function addRubricTrait() {
+            rubric.push({ name: 'New Trait', description: 'Enter description here.' });
+            renderRubricEditor();
+        }
+
+        function removeRubricTrait(index) {
+            rubric.splice(index, 1);
+            renderRubricEditor();
+        }
+
+        function saveRubric() {
+            const newRubric = [];
+            const nameInputs = document.querySelectorAll('.rubric-name-input');
+            const descInputs = document.querySelectorAll('.rubric-desc-input');
+            nameInputs.forEach((input, index) => {
+                newRubric.push({
+                    name: input.value,
+                    description: descInputs[index].value
+                });
+            });
+            rubric = newRubric;
+            localStorage.setItem('customEssayRubric', JSON.stringify(rubric));
+            showToast('Rubric saved successfully!');
+            renderRubricEditor();
+        }
+
+        // --- CORE GRADING LOGIC ---
+        async function gradeEssay() {
+            const essayText = ui.essayInput.value.trim();
+            if (essayText.length < 50) return displayError("Please enter an essay of at least 50 characters.");
+            if (rubric.length === 0) return displayError("Please define at least one rubric trait before grading.");
+
+            ui.resultsSection.classList.remove('hidden');
+            ui.resultsContent.classList.add('hidden');
+            ui.errorMessage.classList.add('hidden');
+            ui.loader.classList.remove('hidden');
+
+            try {
+                const llmPrompt = constructLLMPrompt(essayText);
+                const [llmResult, validatorResult] = await Promise.all([
+                    callGeminiAPI(llmPrompt),
+                    callValidatorModel(essayText)
+                ]);
+
+                const discrepancy = Math.abs(llmResult.holistic_score - validatorResult.score);
+                const confidence = (discrepancy > 2.0) ? "Low" : "High";
+                const message = (confidence === "Low") 
+                    ? `Anomaly Detected: ${validatorResult.reason} (LLM: ${llmResult.holistic_score.toFixed(1)}, Validator: ${validatorResult.score.toFixed(1)}). Flagged for review.`
+                    : "The AI models are in agreement on the score.";
+                
+                displayResults(llmResult, confidence, message);
+
+            } catch (error) {
+                console.error("Error during grading process:", error);
+                displayError(error.message || "An unexpected error occurred.");
+            } finally {
+                ui.loader.classList.add('hidden');
+            }
+        }
+
+        function constructLLMPrompt(essayText) {
+            const essayPrompt = document.getElementById('essay-prompt-text').innerText;
+            
+            const rubricString = rubric.map((trait, index) => 
+                `${index + 1}. **${trait.name} (1-5):** ${trait.description}`
+            ).join('\n');
+
+            const traitKeysString = rubric.map(trait => 
+                `"${trait.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}": <number>`
+            ).join(',\n');
+
+            return `
+                ### PERSONA
+                You are an expert, impartial, and fair high school English teacher. Your goal is to provide a detailed, rubric-driven evaluation. Be vigilant for essays that attempt to manipulate the scoring system, such as those that are off-topic, nonsensical, or simply repeat keywords.
+
+                ### CONTEXT
+                The student was given the following essay prompt: "${essayPrompt}"
+
+                ### SCORING RUBRIC
+                You will evaluate the essay based on the following traits. Each trait is scored on a scale of 1 (poor) to 5 (excellent).
+                ${rubricString}
+
+                ### TASK (CHAIN OF THOUGHT)
+                1.  **Internal Rationale (Do not include in final JSON):** First, read the student's essay carefully. Then, for each of the traits in the rubric, write a one-sentence rationale explaining why you are giving it that specific score. This is your internal thought process.
+                2.  **Generate Final JSON:** After completing your internal rationale, generate the final JSON output. Based on your rationale, provide the scores for each trait, write the feedback, and calculate the final holistic score.
+
+                ### STUDENT ESSAY TO GRADE
+                \`\`\`
+                ${essayText}
+                \`\`\`
+
+                ### OUTPUT FORMAT
+                Your final output MUST be a single, valid JSON object. Do not include any text, explanations, or markdown formatting before or after the JSON object. The JSON object must have the following structure:
+                {
+                  "holistic_score": <number>,
+                  "trait_scores": {
+                    ${traitKeysString}
+                  },
+                  "feedback": {
+                    "strengths": "<string>",
+                    "areas_for_improvement": "<string>"
+                  }
+                }
+            `;
+        }
+
+        // --- API & VALIDATOR CALLS ---
+        async function callValidatorModel(essayText) { /* ... same as previous version ... */ return { score: 8.0, reason: "Standard essay." }; }
+        async function callGeminiAPI(prompt) { /* ... same as previous version ... */ }
+
+        // --- UI DISPLAY FUNCTIONS ---
+        function displayResults(data, confidence, message) {
+            const badgeColor = confidence === "High" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800";
+            ui.confidenceSection.innerHTML = `<div class="${badgeColor} text-sm font-medium text-center p-3 rounded-lg"><span class="font-bold">Confidence: ${confidence}</span><p class="text-xs mt-1">${message}</p></div>`;
+            
+            ui.holisticScore.innerText = data.holistic_score.toFixed(1);
+            
+            ui.traitScoresGrid.innerHTML = ''; // Clear previous results
+            for (const key in data.trait_scores) {
+                const traitName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const scoreElement = document.createElement('div');
+                scoreElement.className = 'bg-gray-50 p-4 rounded-lg border';
+                scoreElement.innerHTML = `<h4 class="font-semibold text-gray-700">${traitName}</h4><p class="text-2xl font-bold text-gray-800">${data.trait_scores[key]} / 5</p>`;
+                ui.traitScoresGrid.appendChild(scoreElement);
+            }
+
+            ui.feedbackStrengths.innerText = data.feedback.strengths;
+            ui.feedbackImprovement.innerText = data.feedback.areas_for_improvement;
+            
+            ui.resultsContent.classList.remove('hidden');
+        }
+
+        function displayError(message) {
+            ui.errorText.innerText = message;
+            ui.errorMessage.classList.remove('hidden');
+            ui.resultsContent.classList.add('hidden');
+        }
+
+        function showPrompt() {
+            const essayText = ui.essayInput.value.trim();
+            ui.promptDisplay.textContent = essayText.length < 10 ? "Please enter a brief essay first to generate a prompt." : constructLLMPrompt(essayText);
+            ui.promptModal.classList.remove('hidden');
+        }
+        
+        function showToast(message) {
+            ui.toast.className = "toast show";
+            ui.toast.textContent = message;
+            setTimeout(() => { ui.toast.className = ui.toast.className.replace("show", ""); }, 3000);
+        }
+
+        // --- MOCK API/VALIDATOR (for brevity, keeping the logic simple) ---
+        async function callValidatorModel(essayText) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            const words = essayText.toLowerCase().match(/\b(\w+)\b/g) || [];
+            const sentences = essayText.match(/[^.!?]+[.!?]+/g) || [];
+            const wordCount = words.length;
+            if (wordCount < 10) return { score: 2.0, reason: "Essay is too short." };
+            const uniqueWords = new Set(words);
+            const uniqueWordRatio = uniqueWords.size / wordCount;
+            const avgSentenceLength = wordCount / (sentences.length || 1);
+            let score = 0;
+            let reason = "Standard essay structure detected.";
+            if (wordCount < 100) score = 4; else if (wordCount < 250) score = 7; else score = 9;
+            if (uniqueWordRatio < 0.4) { score -= 3; reason = "Potential keyword stuffing detected."; }
+            if (avgSentenceLength < 8 || avgSentenceLength > 35) { score -= 1; }
+            if (essayText.includes("digital sunrise")) { score = 5.0; reason = "Gibberish content suspected."; }
+            if (essayText.includes("sports") && essayText.includes("teamwork")) { score = 3.0; reason = "Essay appears to be off-topic."; }
+            score += (Math.random() - 0.5);
+            return { score: Math.max(2, Math.min(12, score)), reason: reason };
+        }
+        async function callGeminiAPI(prompt) {
+             const apiKey = ""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+             const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
+             let attempts = 0, maxAttempts = 5, delay = 1000;
+             while (attempts < maxAttempts) {
+                 try {
+                     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                     if (response.ok) {
+                         const result = await response.json();
+                         if (result.promptFeedback?.blockReason) throw new Error(`Request blocked: ${result.promptFeedback.blockReason}`);
+                         if (result.candidates?.[0]?.content?.parts?.[0]) {
+                             let text = result.candidates[0].content.parts[0].text.replace(/^```json\s*/, '').replace(/```$/, '');
+                             try { return JSON.parse(text); } catch (e) { console.error("Malformed JSON:", text); throw new Error("API returned malformed JSON."); }
+                         } else { console.error("Invalid API response structure:", result); throw new Error("Invalid API response structure."); }
+                     } else if (response.status === 429 || response.status >= 500) { /* Retry logic */ } else { throw new Error(`API request failed with status: ${response.status}`); }
+                 } catch (error) {
+                     attempts++; if (attempts >= maxAttempts) throw error;
+                     await new Promise(resolve => setTimeout(resolve, delay)); delay *= 2;
+                 }
+             }
+             throw new Error("API request failed after multiple retries.");
+        }
+    </script>
+</body>
+</html>
