@@ -339,7 +339,7 @@
             return { score: Math.max(2, Math.min(12, score)), reason: reason };
         }
         async function callGeminiAPI(prompt) {
-             const apiKey = "AIzaSyA8W3ab5q3EKlIxJ42Xiy-7zQwenbSlShg"; // Remember to add your API key
+             const apiKey = "AIzaSyB8lTrU6bHJE0mLvS-Q7EgSmXTsFqzgAzM"; // Remember to add your API key
              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
              const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
              let attempts = 0, maxAttempts = 5, delay = 1000;
