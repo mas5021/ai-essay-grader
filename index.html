@@ -124,12 +124,9 @@
             saveRubricButton: document.getElementById('save-rubric-button'),
             traitScoresGrid: document.getElementById('trait-scores-grid'),
             toast: document.getElementById('toast'),
-            // **FIX START**
-            // Added the missing reference to the holistic-score element.
             holisticScore: document.getElementById('holistic-score'),
             feedbackStrengths: document.getElementById('feedback-strengths'),
             feedbackImprovement: document.getElementById('feedback-improvement')
-            // **FIX END**
         };
 
         // --- EVENT LISTENERS ---
@@ -228,6 +225,8 @@
             }
         }
 
+        // **FIX START**
+        // Restored the missing few-shot example to the prompt generation.
         function constructLLMPrompt(essayText) {
             const essayPrompt = document.getElementById('essay-prompt-text').innerText;
             
@@ -238,6 +237,26 @@
             const traitKeysString = rubric.map(trait => 
                 `"${trait.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}": <number>`
             ).join(',\n');
+            
+            const exemplarEssay = `Computers have become an indispensable part of modern life, fundamentally reshaping how we learn, communicate, and innovate. Their integration into society is overwhelmingly positive, acting as a catalyst for progress in nearly every field. By enhancing access to information, streamlining complex tasks, and fostering global connectivity, computers serve as powerful tools for human advancement.
+
+One of the most significant benefits of computers is their revolutionary impact on education. The internet, accessed via computers, provides students with a virtually limitless library of information. Complex topics can be explored through interactive simulations, and online courses from top universities are available to anyone with a connection. For instance, a student studying astronomy can now use software to explore a 3D model of the solar system, an experience far more engaging than a static textbook image. This democratization of knowledge empowers self-directed learning and bridges educational gaps.
+
+Furthermore, computers have redefined the landscape of professional work and innovation. Industries from medicine to engineering rely on computational power to model complex systems, analyze vast datasets, and design new products with unprecedented speed and accuracy. In medicine, computers aid in everything from genomic sequencing to the development of new pharmaceuticals, leading to breakthroughs that save lives. This acceleration of innovation is a direct result of our ability to process and analyze information at a scale previously unimaginable.`;
+
+            const exemplarJson = {
+              "holistic_score": 12.0,
+              "trait_scores": {
+                "thesis_clarity_focus": 5,
+                "evidence_support": 5,
+                "organization_cohesion": 5,
+                "language_grammar": 5
+              },
+              "feedback": {
+                "strengths": "This essay presents a sophisticated, well-supported argument with excellent organization. The evidence is specific and compelling, and the language is precise and academic.",
+                "areas_for_improvement": "The essay is outstanding and meets all criteria for a top score."
+              }
+            };
 
             return `
                 ### PERSONA
@@ -249,6 +268,11 @@
                 ### SCORING RUBRIC
                 You will evaluate the essay based on the following traits. Each trait is scored on a scale of 1 (poor) to 5 (excellent).
                 ${rubricString}
+
+                ### EXEMPLARY "PERFECT SCORE" EXAMPLE (FEW-SHOT)
+                Here is an example of a perfect essay and its corresponding evaluation. Use this as a gold standard for your grading.
+                - EXEMPLARY ESSAY: "${exemplarEssay}"
+                - EXEMPLARY JSON EVALUATION: ${JSON.stringify(exemplarJson, null, 2)}
 
                 ### TASK (CHAIN OF THOUGHT)
                 1.  **Internal Rationale (Do not include in final JSON):** First, read the student's essay carefully. Then, for each of the traits in the rubric, write a one-sentence rationale explaining why you are giving it that specific score. This is your internal thought process.
@@ -273,10 +297,7 @@
                 }
             `;
         }
-
-        // --- API & VALIDATOR CALLS ---
-        async function callValidatorModel(essayText) { /* ... same as previous version ... */ return { score: 8.0, reason: "Standard essay." }; }
-        async function callGeminiAPI(prompt) { /* ... same as previous version ... */ }
+        // **FIX END**
 
         // --- UI DISPLAY FUNCTIONS ---
         function displayResults(data, confidence, message) {
@@ -333,8 +354,8 @@
             if (wordCount < 100) score = 4; else if (wordCount < 250) score = 7; else score = 9;
             if (uniqueWordRatio < 0.4) { score -= 3; reason = "Potential keyword stuffing detected."; }
             if (avgSentenceLength < 8 || avgSentenceLength > 35) { score -= 1; }
-            if (essayText.includes("digital sunrise")) { score = 5.0; reason = "Gibberish content suspected."; }
-            if (essayText.includes("sports") && essayText.includes("teamwork")) { score = 3.0; reason = "Essay appears to be off-topic."; }
+            if (essayText.includes("digital sunrise")) { score = 5.0, reason = "Gibberish content suspected."; }
+            if (essayText.includes("sports") && essayText.includes("teamwork")) { score = 3.0, reason = "Essay appears to be off-topic."; }
             score += (Math.random() - 0.5);
             return { score: Math.max(2, Math.min(12, score)), reason: reason };
         }
