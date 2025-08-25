@@ -202,10 +202,19 @@
             ui.errorMessage.classList.add('hidden');
             ui.loader.classList.remove('hidden');
 
+            // **FIX START: Added API key check at the beginning of the function.**
+            const apiKey = "AIzaSyB8lTrU6bHJE0mLvS-Q7EgSmXTsFqzgAzM"; // <-- IMPORTANT: Replace with your actual API key from Google AI Studio.
+            if (apiKey === "YOUR_API_KEY_HERE" || !apiKey) {
+                displayError("API Key is missing. Please get a key from Google AI Studio and add it to the 'gradeEssay' function in the script.");
+                ui.loader.classList.add('hidden');
+                return;
+            }
+            // **FIX END**
+
             try {
                 const llmPrompt = constructLLMPrompt(essayText);
                 const [llmResult, validatorResult] = await Promise.all([
-                    callGeminiAPI(llmPrompt),
+                    callGeminiAPI(llmPrompt, apiKey), // Pass the key to the API function
                     callValidatorModel(essayText)
                 ]);
 
@@ -225,8 +234,6 @@
             }
         }
 
-        // **FIX START**
-        // Restored the missing few-shot example to the prompt generation.
         function constructLLMPrompt(essayText) {
             const essayPrompt = document.getElementById('essay-prompt-text').innerText;
             
@@ -247,10 +254,10 @@ Furthermore, computers have redefined the landscape of professional work and inn
             const exemplarJson = {
               "holistic_score": 12.0,
               "trait_scores": {
-                "thesis_clarity_focus": 5,
-                "evidence_support": 5,
-                "organization_cohesion": 5,
-                "language_grammar": 5
+                "thesis_clarity_&_focus": 5,
+                "evidence_&_support": 5,
+                "organization_&_cohesion": 5,
+                "language_&_grammar": 5
               },
               "feedback": {
                 "strengths": "This essay presents a sophisticated, well-supported argument with excellent organization. The evidence is specific and compelling, and the language is precise and academic.",
@@ -276,7 +283,9 @@ Furthermore, computers have redefined the landscape of professional work and inn
 
                 ### TASK (CHAIN OF THOUGHT)
                 1.  **Internal Rationale (Do not include in final JSON):** First, read the student's essay carefully. Then, for each of the traits in the rubric, write a one-sentence rationale explaining why you are giving it that specific score. This is your internal thought process.
-                2.  **Generate Final JSON:** After completing your internal rationale, generate the final JSON output. Based on your rationale, provide the scores for each trait, write the feedback, and calculate the final holistic score.
+                2.  **Generate Final JSON:** After completing your internal rationale, generate the final JSON output. Based on your rationale, provide the scores for each trait, write the feedback, and then calculate the final holistic score.
+                
+                To calculate the holistic score, first find the average of all your trait scores. Then, map that average (which is on a 1-5 scale) to the final holistic score on a 2-12 scale. For example, an average trait score of 3.0 should result in a holistic score of around 7.0.
 
                 ### STUDENT ESSAY TO GRADE
                 \`\`\`
@@ -297,14 +306,14 @@ Furthermore, computers have redefined the landscape of professional work and inn
                 }
             `;
         }
-        // **FIX END**
 
         // --- UI DISPLAY FUNCTIONS ---
         function displayResults(data, confidence, message) {
             const badgeColor = confidence === "High" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800";
             ui.confidenceSection.innerHTML = `<div class="${badgeColor} text-sm font-medium text-center p-3 rounded-lg"><span class="font-bold">Confidence: ${confidence}</span><p class="text-xs mt-1">${message}</p></div>`;
             
-            ui.holisticScore.innerText = data.holistic_score.toFixed(1);
+            const clampedScore = Math.max(2.0, Math.min(12.0, data.holistic_score));
+            ui.holisticScore.innerText = clampedScore.toFixed(1);
             
             ui.traitScoresGrid.innerHTML = ''; // Clear previous results
             for (const key in data.trait_scores) {
@@ -359,8 +368,9 @@ Furthermore, computers have redefined the landscape of professional work and inn
             score += (Math.random() - 0.5);
             return { score: Math.max(2, Math.min(12, score)), reason: reason };
         }
-        async function callGeminiAPI(prompt) {
-             const apiKey = "AIzaSyB8lTrU6bHJE0mLvS-Q7EgSmXTsFqzgAzM"; // Remember to add your API key
+        
+        // **FIX START: Modified function to accept the API key as an argument.**
+        async function callGeminiAPI(prompt, apiKey) {
              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
              const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
              let attempts = 0, maxAttempts = 5, delay = 1000;
@@ -388,6 +398,7 @@ Furthermore, computers have redefined the landscape of professional work and inn
              }
              throw new Error("API request failed after multiple retries.");
         }
+        // **FIX END**
     </script>
 </body>
 </html>
