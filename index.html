@@ -217,7 +217,7 @@
                 ]);
 
                 const discrepancy = Math.abs(llmResult.holistic_score - validatorResult.score);
-                const confidence = (discrepancy > 2.5) ? "Low" : "High"; // Increased threshold for smarter validator
+                const confidence = (discrepancy > 2.5) ? "Low" : "High";
                 const message = (confidence === "Low") 
                     ? `Anomaly Detected: ${validatorResult.reason} (LLM: ${llmResult.holistic_score.toFixed(1)}, Validator: ${validatorResult.score.toFixed(1)}). Flagged for review.`
                     : "The AI models are in agreement on the score.";
@@ -346,7 +346,6 @@ Furthermore, computers have redefined the landscape of professional work and inn
             setTimeout(() => { ui.toast.className = ui.toast.className.replace("show", ""); }, 3000);
         }
 
-        // **FIX START: Improved the validator model to be more sophisticated.**
         async function callValidatorModel(essayText) {
             await new Promise(resolve => setTimeout(resolve, 200));
             
@@ -360,19 +359,17 @@ Furthermore, computers have redefined the landscape of professional work and inn
             const uniqueWordRatio = uniqueWords.size / wordCount;
             const avgSentenceLength = wordCount / (sentences.length || 1);
 
-            let score = 2.0; // Start with a base score
+            let score = 2.0;
             let reason = "Standard essay structure detected.";
 
-            // Score based on a combination of factors, not just length
-            let lengthScore = Math.min(5, (wordCount / 50)); // Up to 5 points for length (max at 250 words)
-            let diversityScore = (uniqueWordRatio - 0.4) * 10; // Reward diversity, penalize repetition
-            let complexityScore = Math.min(2, avgSentenceLength / 10); // Up to 2 points for sentence complexity
+            let lengthScore = Math.min(5, (wordCount / 50));
+            let diversityScore = (uniqueWordRatio - 0.4) * 10;
+            let complexityScore = Math.min(2, avgSentenceLength / 10);
 
             score += lengthScore + diversityScore + complexityScore;
 
-            // Specific edge case checks
             if (uniqueWordRatio < 0.35) {
-                score *= 0.5; // Heavily penalize keyword stuffing
+                score *= 0.5;
                 reason = "Potential keyword stuffing detected due to repetitive language.";
             }
             if (essayText.includes("digital sunrise") || essayText.includes("electric sheep")) {
@@ -388,11 +385,12 @@ Furthermore, computers have redefined the landscape of professional work and inn
             
             return { score: finalScore, reason: reason };
         }
-        // **FIX END**
-
+        
         async function callGeminiAPI(prompt, apiKey) {
              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-             const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
+             // **FIX START: Set temperature to 0 for deterministic output.**
+             const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 8192 } };
+             // **FIX END**
              let attempts = 0, maxAttempts = 5, delay = 1000;
              while (attempts < maxAttempts) {
                  try {
