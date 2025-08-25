@@ -123,7 +123,13 @@
             addTraitButton: document.getElementById('add-trait-button'),
             saveRubricButton: document.getElementById('save-rubric-button'),
             traitScoresGrid: document.getElementById('trait-scores-grid'),
-            toast: document.getElementById('toast')
+            toast: document.getElementById('toast'),
+            // **FIX START**
+            // Added the missing reference to the holistic-score element.
+            holisticScore: document.getElementById('holistic-score'),
+            feedbackStrengths: document.getElementById('feedback-strengths'),
+            feedbackImprovement: document.getElementById('feedback-improvement')
+            // **FIX END**
         };
 
         // --- EVENT LISTENERS ---
@@ -333,7 +339,8 @@
             return { score: Math.max(2, Math.min(12, score)), reason: reason };
         }
         async function callGeminiAPI(prompt) {
-             const apiKey = "AIzaSyA8W3ab5q3EKlIxJ42Xiy-7zQwenbSlShg"; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+             const apiKey = "YOUR_API_KEY_HERE"; // Remember to add your API key
+             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
              const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 8192 } };
              let attempts = 0, maxAttempts = 5, delay = 1000;
              while (attempts < maxAttempts) {
@@ -346,7 +353,13 @@
                              let text = result.candidates[0].content.parts[0].text.replace(/^```json\s*/, '').replace(/```$/, '');
                              try { return JSON.parse(text); } catch (e) { console.error("Malformed JSON:", text); throw new Error("API returned malformed JSON."); }
                          } else { console.error("Invalid API response structure:", result); throw new Error("Invalid API response structure."); }
-                     } else if (response.status === 429 || response.status >= 500) { /* Retry logic */ } else { throw new Error(`API request failed with status: ${response.status}`); }
+                     } else if (response.status === 429 || response.status >= 500) { 
+                        attempts++; if (attempts >= maxAttempts) throw new Error(`API request failed after ${maxAttempts} attempts with status: ${response.status}`);
+                        await new Promise(resolve => setTimeout(resolve, delay)); delay *= 2;
+                     } else { 
+                        const errorBody = await response.text();
+                        throw new Error(`API request failed with status: ${response.status}. Body: ${errorBody}`);
+                     }
                  } catch (error) {
                      attempts++; if (attempts >= maxAttempts) throw error;
                      await new Promise(resolve => setTimeout(resolve, delay)); delay *= 2;
